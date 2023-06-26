@@ -10,7 +10,7 @@
 
 typedef struct
 {
-        unsigned char name_size;
+        unsigned int name_size;
         char *name;
         uid_t user_id;
         mode_t permissions;

@@ -40,7 +40,10 @@ int main(int argc, char **argv)
 	}
 
 	if (!option_function(arg))
+	{
+		destroy_arguments(arg);
 		return 2;
+	}
 
 	destroy_arguments(arg);
 
