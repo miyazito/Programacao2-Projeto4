@@ -1,12 +1,22 @@
 #include "vina_aux_functions.h"
 
-int initialize_archive(FILE *archive)
+void initialize_archive(FILE *archive)
 {
         unsigned int directory_size = sizeof(unsigned int) + sizeof(int);
         int file_count = 0;
 
-        fwrite(&directory_size, 1, (int)sizeof(unsigned int), archive);
-        fwrite(&file_count, 1, (int)sizeof(int), archive);
+        fseek(archive, 0, SEEK_SET);
+        fwrite(&directory_size, sizeof(unsigned int), 1, archive);
+        fwrite(&file_count, sizeof(int), 1, archive);
+}
 
-        return 1;
+archive_data_t *get_archive_data(FILE *archive)
+{
+        archive_data_t *archive_data = (archive_data_t *)malloc(sizeof(archive_data_t));
+
+        fseek(archive, 0, SEEK_SET);
+        fread(&archive_data->directory_size, sizeof(unsigned int), 1, archive);
+        fread(&archive_data->file_count, sizeof(int), 1, archive);
+
+        return archive_data;
 }

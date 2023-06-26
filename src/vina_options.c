@@ -6,17 +6,19 @@ int option_insert(arguments_t *arg)
         unsigned int member_size, position = 1;
         char *buffer;
         FILE *archive, *members[arg->file_count];
+        archive_data_t *archive_data;
 
         if (!(archive = fopen(arg->archive, "rb+")))
         {
                 fprintf(stderr, "Erro ao abrir o arquivo \"%s\"\n", arg->archive);
                 return 0;
         }
-        /*
-                if (feof(archive))
-                        if (!initialize_archive(archive))
-                                return 0;
-        */
+        
+        if(!get_size(archive))
+                initialize_archive(archive);
+
+        archive_data = get_archive_data(archive);
+
         for (i = 0; i < arg->file_count; i++)
         {
                 buffer = (char *)malloc(sizeof(char) * 10000);
@@ -39,6 +41,13 @@ int option_insert(arguments_t *arg)
 
 int option_insert_a(arguments_t *arg)
 {
+        FILE *archive = fopen(arg->archive, "rb+");
+        archive_data_t *archive_data = get_archive_data(archive);
+
+        printf("directory size: %u\nfile count: %d\n", archive_data->directory_size, archive_data->file_count);
+        
+        free(archive_data);
+        fclose(archive);
         return 1;
 }
 
