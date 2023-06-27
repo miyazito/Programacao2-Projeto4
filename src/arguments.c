@@ -8,7 +8,7 @@ arguments_t *create_arguments()
 	arg->archive = NULL;
 	arg->files = NULL;
 	arg->target = NULL;
-	arg->file_count = 0;
+	arg->member_count = 0;
 
 	return arg;
 }
@@ -21,11 +21,11 @@ void destroy_arguments(arguments_t *arg)
 		free(arg->archive);
 	if (arg->files)
 	{
-		while (arg->file_count != 0)
+		while (arg->member_count != 0)
 		{
-			i = arg->file_count - 1;
+			i = arg->member_count - 1;
 			free(arg->files[i]);
-			arg->file_count--;
+			arg->member_count--;
 		}
 		free(arg->files);
 	}
@@ -56,10 +56,10 @@ int treat_arguments(int argc, char **argv, arguments_t *arg)
 	arg->files = (char **)malloc(sizeof(char *));
 	for (i = 3 + move_flag; i < argc; i++)
 	{
-		arg->files = (char **)realloc(arg->files, sizeof(char *) * (arg->file_count + 1));
+		arg->files = (char **)realloc(arg->files, sizeof(char *) * (arg->member_count + 1));
 		arg->files[i - (3 + move_flag)] = (char *)malloc(sizeof(char) * (strlen(argv[i + move_flag]) + 1));
 		strcpy(arg->files[i - (3 + move_flag)], argv[i + move_flag]);
-		arg->file_count++;
+		arg->member_count++;
 	}
 
 	return 1;
@@ -81,7 +81,6 @@ arguments_t *check_arguments(int argc, char **argv)
 	{
 		if (option_selected)
 		{
-			printf("testete\n");
 			error(arg);
 			return NULL;
 		}
@@ -132,7 +131,7 @@ arguments_t *check_arguments(int argc, char **argv)
 
 	return arg;
 }
-
+/*
 void test_arguments(arguments_t *arg)
 {
 	int i;
@@ -140,12 +139,12 @@ void test_arguments(arguments_t *arg)
 	{
 		printf("option: %d\n", arg->option);
 		printf("archive: %s\n", arg->archive);
-		printf("file count: %d\n", arg->file_count);
+		printf("member count: %d\n", arg->member_count);
 		printf("files:");
-		for (i = 0; i < arg->file_count; i++)
+		for (i = 0; i < arg->member_count; i++)
 			printf(" %s", arg->files[i]);
 		printf("\n");
 	}
 	else
 		printf("help\n");
-}
+}*/

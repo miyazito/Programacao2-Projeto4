@@ -3,27 +3,27 @@
 int option_insert(arguments_t *arg)
 {
         int i;
-        unsigned int member_size, position, archive_order, member_directory_data_size, old_directory_size;
+        unsigned int member_size, position, archive_order, member_directory_data_size, old_directory_size, directory_position;
         char *buffer;
-        FILE *archive, *members[arg->file_count];
+        FILE *archive, *members[arg->member_count];
         archive_data_t *archive_data;
-        member_data_t * member_data;
+        member_data_t *member_data;
 
         if (!(archive = fopen(arg->archive, "rb+")))
         {
                 fprintf(stderr, "Erro ao abrir o arquivo \"%s\"\n", arg->archive);
                 return 0;
         }
-        
-        if(!get_size(archive))
+
+        if (!get_size(archive))
                 initialize_archive(archive);
 
         archive_data = get_archive_data(archive);
-        archive_order = archive_data->file_count + 1;
 
-        for (i = 0; i < arg->file_count; i++)
+        for (i = 0; i < arg->member_count; i++)
         {
                 buffer = (char *)malloc(sizeof(char) * 1024);
+
                 member_directory_data_size = strlen(arg->files[i]) + sizeof(uid_t) + sizeof(mode_t) + sizeof(off_t) + sizeof(time_t) + sizeof(unsigned int) + sizeof(unsigned long int);
                 if (!(members[i] = fopen(arg->files[i], "rb")))
                 {
@@ -31,7 +31,7 @@ int option_insert(arguments_t *arg)
                         return 0;
                 }
                 member_size = get_size(members[i]);
-                
+
                 old_directory_size = archive_data->directory_size;
                 archive_data->directory_size += member_directory_data_size;
 
@@ -42,15 +42,15 @@ int option_insert(arguments_t *arg)
                         move_bytes(archive, old_directory_size + 1, get_size(archive), archive_data->directory_size + 1);
 
                 fseek(archive, old_directory_size + 1, SEEK_SET);
-                fwrite(&member_data->name_size, sizeof(unsigned int), 1, archive);
-                fwrite(&member_data->name, member_data->name_size + 1, 1, archive);
-                fwrite(&member_data->user_id, sizeof(uid_t), 1, archive);
-                fwrite(&member_data->permissions, sizeof(mode_t), 1, archive);
-                fwrite(&member_data->size, sizeof(off_t), 1, archive);
-                fwrite(&member_data->modification_date, sizeof(time_t), 1, archive);
-                fwrite(&member_data->archive_order, sizeof(unsigned int), 1, archive);
-                fwrite(&member_data->position, sizeof(unsigned long int), 1, archive);
-                
+                fwrite(&member_data->name_size, 1, sizeof(unsigned int), archive);
+                fwrite(&member_data->name, 1, member_data->name_size + archive);
+                fwrite(&member_data->user_id, 1, sizeof(uid_t), archive);
+                fwrite(&member_data->permissions, 1, sizeof(mode_t), archive);
+                fwrite(&member_data->size, 1, sizeof(off_t), archive);
+                fwrite(&member_data->modification_date, 1, sizeof(time_t), archive);
+                fwrite(&member_data->archive_order, 1, sizeof(unsigned int), archive);
+                fwrite(&member_data->position, 1, sizeof(unsigned long int), archive);
+
                 // printf("member name: %s\n", member_data->name);
                 // printf("member user id: %u\n", member_data->user_id);
                 // printf("member permissions: %o\n", member_data->permissions);
@@ -59,9 +59,7 @@ int option_insert(arguments_t *arg)
                 // printf("member archive order: %d\n", member_data->archive_order);
                 // printf("member position: %lu\n", member_data->position);
 
-                
                 archive_order++;
-
 
                 extract_bytes(members[i], buffer, 1, member_size);
                 append_bytes(archive, buffer, member_size);
@@ -76,45 +74,49 @@ int option_insert(arguments_t *arg)
 
 int option_insert_a(arguments_t *arg)
 {
-        FILE *archive = fopen(arg->archive, "rb+");
-        archive_data_t *archive_data = get_archive_data(archive);
-
-        printf("directory size: %u\nfile count: %d\n", archive_data->directory_size, archive_data->file_count);
-        
-        free(archive_data);
-        fclose(archive);
         return 1;
 }
 
 int option_move(arguments_t *arg)
 {
-        
+
         return 1;
 }
 
 int option_extract(arguments_t *arg)
 {
-        unsigned int member_size;
-        char *buffer = (char *)malloc(sizeof(char) * 10000);
+        int i, file_index;
         FILE *archive, *member;
+        archive_data_t *archive_data;
 
-        if (!(archive = fopen(arg->archive, "rb+")))
+        archive = fopen(arg->archive, "rb+");
+        archive_data = get_archive_data(archive);
+
+        if (arg->member_count == 0)
         {
-                fprintf(stderr, "Erro ao abrir o arquivo \"%s\"\n", arg->archive);
-                return 0;
+                for (i = 0; i < archive_data->file_count; i++)
+                {
+                        member = fopen(archive_data->members[i]->name, "wb+");
+                        extract_file(archive, member, archive_data->members[i]->size, archive_data->members[i]->position);
+                        fclose(member);
+                }
+        }
+        else
+        {
+                for (i = 0; i < arg->member_count; i++)
+                {
+                        if ((file_index = file_is_in_archive(arg->files[i], archive_data)) != -1)
+                        {
+                                member = fopen(archive_data->members[file_index]->name, "wb+");
+                                extract_file(archive, member, archive_data->members[file_index]->size, archive_data->members[file_index]->position);
+                                fclose(member);
+                        }
+                        else
+                                fprintf(stderr, "Membro %s nao esta no arquivador\n", arg->files[i]);
+                }
         }
 
-        if (!(member = fopen(arg->files[0], "wb+")))
-        {
-                fprintf(stderr, "Erro ao abrir/criar arquivo \"%s\"\n", arg->files[0]);
-                return 0;
-        }
-        member_size = get_size(archive);
-        extract_bytes(archive, buffer, 1, member_size);
-        append_bytes(member, buffer, member_size);
-
-        free(buffer);
-        fclose(member);
+        destroy_archive_data(archive_data);
         fclose(archive);
 
         return 1;
@@ -122,50 +124,36 @@ int option_extract(arguments_t *arg)
 
 int option_remove(arguments_t *arg)
 {
-        FILE *archive = fopen(arg->archive, "rb+");
+        FILE *archive;
         archive_data_t *archive_data;
-        member_data_t *member_data;
-        fopen(arg->archive, "rb+");
 
-        fseek(archive, 0, SEEK_SET);
-
-        archive_data = (archive_data_t *)malloc(sizeof(archive_data_t));
-        member_data = (member_data_t *)malloc(sizeof(member_data_t));
-
-        fread(&archive_data->directory_size, sizeof(unsigned int), 1, archive);
-        fread(&archive_data->file_count, sizeof(int), 1, archive);
-        fread(&member_data->name_size, sizeof(unsigned int), 1, archive);
-        fread(&member_data->name, member_data->name_size, 1, archive);
-        fread(&member_data->user_id, sizeof(uid_t), 1, archive);
-        fread(&member_data->permissions, sizeof(mode_t), 1, archive);
-        fread(&member_data->size, sizeof(off_t), 1, archive);
-        fread(&member_data->modification_date, sizeof(time_t), 1, archive);
-        fread(&member_data->archive_order, sizeof(unsigned int), 1, archive);
-        fread(&member_data->position, sizeof(unsigned long int), 1, archive);
-        
-        
-
-        printf("archive directory size: %d\n", archive_data->directory_size);
-        printf("archive file_count: %d\n", archive_data->file_count);
-        printf("member name size: %d\n", member_data->name_size);
-        printf("member name: %s\n", member_data->name);
-        printf("member user id: %u\n", member_data->user_id);
-        printf("member permissions: %o\n", member_data->permissions);
-        printf("member size: %jd\n", member_data->size);
-        printf("member modification date: %s\n", ctime(&member_data->modification_date));
-        printf("member archive order: %d\n", member_data->archive_order);
-        printf("member position: %lu\n", member_data->position);
-
-
-        fclose(archive);
-        free(archive_data);
-        free(member_data);
+        archive = fopen(arg->archive, "rb+");
+        archive_data = get_archive_data(archive);
 
         return 1;
 }
 
 int option_list(arguments_t *arg)
 {
+        int i;
+        FILE *archive;
+        archive_data_t *archive_data;
+
+        archive = fopen(arg->archive, "rb+");
+        archive_data = get_archive_data(archive);
+
+        if (archive_data->file_count == 0)
+                printf("O arquivador %s esta vazio\n", arg->archive);
+        else
+        {
+                printf("Arquivos presentes no arquivador %s:\n", arg->archive);
+                for (i = 0; i < archive_data->file_count; i++)
+                        printf("%s\n", archive_data->members[i]->name);
+        }
+
+        destroy_archive_data(archive_data);
+        fclose(archive);
+
         return 1;
 }
 

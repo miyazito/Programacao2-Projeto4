@@ -5,11 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <time.h>
 // #include "arguments.h"
 #include "archiver.h"
 
 typedef struct
 {
+        unsigned int member_data_size;
         unsigned int name_size;
         char *name;
         uid_t user_id;
@@ -22,7 +25,7 @@ typedef struct
 
 typedef struct
 {
-        unsigned int directory_size;
+        unsigned int directory_position, directory_size;
         int file_count;
         member_data_t **members;
 } archive_data_t;
@@ -32,5 +35,11 @@ void initialize_archive(FILE *archive);
 archive_data_t *get_archive_data(FILE *archive);
 
 member_data_t *get_member_data(FILE *member, char *member_name, unsigned int archive_order, unsigned int position);
+
+void destroy_archive_data(archive_data_t *archive_data);
+
+int file_is_in_archive(char *filename, archive_data_t *archive_data);
+
+void extract_file(FILE *archive, FILE *file, unsigned int total_bytes, unsigned int position);
 
 #endif

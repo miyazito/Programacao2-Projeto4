@@ -22,7 +22,7 @@ typedef struct
 {
 	option_t option;
 	char *archive, **files, *target;
-	int file_count;
+	int member_count;
 } arguments_t;
 
 arguments_t *check_arguments(int argc, char **argv);
