@@ -42,7 +42,7 @@ int treat_arguments(int argc, char **argv, arguments_t *arg)
 {
 	int move_flag = 0, i;
 
-	if (argc < 4 || (arg->option == MOVE && argc < 5))
+	if (argc < 3 || (arg->option == MOVE && argc < 5))
 		return 0;
 
 	if (arg->option == MOVE)
@@ -77,7 +77,7 @@ arguments_t *check_arguments(int argc, char **argv)
 		return NULL;
 	}
 
-	while ((option = getopt(argc, argv, "iamxrch")) != -1)
+	while ((option = getopt(argc, argv, "iamxrcht")) != -1)
 	{
 		if (option_selected)
 		{
@@ -114,6 +114,10 @@ arguments_t *check_arguments(int argc, char **argv)
 		case 'h':
 			option_selected = 1;
 			arg->option = HELP;
+			break;
+		case 't':
+			option_selected = 1;
+			arg->option = TEST;
 			break;
 		default:
 			error(arg);

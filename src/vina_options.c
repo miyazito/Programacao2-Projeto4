@@ -1,9 +1,9 @@
 #include "vina_options.h"
 
-int option_insert(arguments_t *arg)
+int option_insert_a(arguments_t *arg)
 {
         int i;
-        unsigned int member_size, position, archive_order, member_directory_data_size, old_directory_size, directory_position;
+        unsigned int member_size, position, archive_order, old_directory_size/*, directory_position*/;
         char *buffer;
         FILE *archive, *members[arg->member_count];
         archive_data_t *archive_data;
@@ -18,13 +18,14 @@ int option_insert(arguments_t *arg)
         if (!get_size(archive))
                 initialize_archive(archive);
 
+        archive = freopen(arg->archive, "rb+", archive);
+
         archive_data = get_archive_data(archive);
 
         for (i = 0; i < arg->member_count; i++)
         {
                 buffer = (char *)malloc(sizeof(char) * 1024);
 
-                member_directory_data_size = strlen(arg->files[i]) + sizeof(uid_t) + sizeof(mode_t) + sizeof(off_t) + sizeof(time_t) + sizeof(unsigned int) + sizeof(unsigned long int);
                 if (!(members[i] = fopen(arg->files[i], "rb")))
                 {
                         fprintf(stderr, "Erro ao abrir arquivo \"%s\"\n", arg->files[i]);
@@ -32,37 +33,21 @@ int option_insert(arguments_t *arg)
                 }
                 member_size = get_size(members[i]);
 
-                old_directory_size = archive_data->directory_size;
-                archive_data->directory_size += member_directory_data_size;
+                
 
-                position = archive_data->directory_size + 1;
+                position = archive_data->directory_position;
                 member_data = get_member_data(members[i], arg->files[i], archive_order, position);
+                old_directory_size = archive_data->directory_size;
+                archive_data->directory_size += member_data->member_data_size;
+                move_bytes(archive, position, position + old_directory_size, position + member_size);
 
-                if (archive_data->file_count != 0)
-                        move_bytes(archive, old_directory_size + 1, get_size(archive), archive_data->directory_size + 1);
+                fseek(archive, position, SEEK_SET);
+                fread(buffer, 1, member_size, members[i]);
+                fwrite(buffer, 1, member_size, archive);
 
-                fseek(archive, old_directory_size + 1, SEEK_SET);
-                fwrite(&member_data->name_size, 1, sizeof(unsigned int), archive);
-                fwrite(&member_data->name, 1, member_data->name_size + archive);
-                fwrite(&member_data->user_id, 1, sizeof(uid_t), archive);
-                fwrite(&member_data->permissions, 1, sizeof(mode_t), archive);
-                fwrite(&member_data->size, 1, sizeof(off_t), archive);
-                fwrite(&member_data->modification_date, 1, sizeof(time_t), archive);
-                fwrite(&member_data->archive_order, 1, sizeof(unsigned int), archive);
-                fwrite(&member_data->position, 1, sizeof(unsigned long int), archive);
-
-                // printf("member name: %s\n", member_data->name);
-                // printf("member user id: %u\n", member_data->user_id);
-                // printf("member permissions: %o\n", member_data->permissions);
-                // printf("member size: %jd\n", member_data->size);
-                // printf("member modification date: %s\n", ctime(&member_data->modification_date));
-                // printf("member archive order: %d\n", member_data->archive_order);
-                // printf("member position: %lu\n", member_data->position);
+                put_member_data(member_data, archive);                
 
                 archive_order++;
-
-                extract_bytes(members[i], buffer, 1, member_size);
-                append_bytes(archive, buffer, member_size);
 
                 fclose(members[i]);
                 free(buffer);
@@ -72,7 +57,7 @@ int option_insert(arguments_t *arg)
         return 1;
 }
 
-int option_insert_a(arguments_t *arg)
+int option_insert(arguments_t *arg)
 {
         return 1;
 }
@@ -123,12 +108,12 @@ int option_extract(arguments_t *arg)
 }
 
 int option_remove(arguments_t *arg)
-{
+{/*
         FILE *archive;
         archive_data_t *archive_data;
 
         archive = fopen(arg->archive, "rb+");
-        archive_data = get_archive_data(archive);
+        archive_data = get_archive_data(archive);*/
 
         return 1;
 }
@@ -139,7 +124,12 @@ int option_list(arguments_t *arg)
         FILE *archive;
         archive_data_t *archive_data;
 
-        archive = fopen(arg->archive, "rb+");
+        if (!(archive = fopen(arg->archive, "rb+")))
+        {
+                fprintf(stderr, "Erro ao abrir o arquivador %s\n", arg->archive);
+                return 0;
+        }
+
         archive_data = get_archive_data(archive);
 
         if (archive_data->file_count == 0)
@@ -169,5 +159,11 @@ int option_help(arguments_t *arg)
         printf("-c : lista o conteudo de archive\n");
         printf("-h : imprime esta mensagem de ajuda\n");
 
+        return 1;
+}
+
+int option_test(arguments_t *arg)
+{
+        
         return 1;
 }

@@ -37,6 +37,9 @@ int main(int argc, char **argv)
 	case HELP:
 		option_function = option_help;
 		break;
+	case TEST:
+		option_function = option_test;
+		break;
 	}
 
 	if (!option_function(arg))

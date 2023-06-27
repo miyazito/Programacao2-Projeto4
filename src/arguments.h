@@ -15,7 +15,8 @@ typedef enum
 	EXTRACT,
 	REMOVE,
 	LIST,
-	HELP
+	HELP,
+	TEST
 } option_t;
 
 typedef struct

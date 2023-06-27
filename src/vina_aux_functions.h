@@ -20,7 +20,7 @@ typedef struct
         off_t size;
         time_t modification_date;
         unsigned int archive_order;
-        unsigned long int position;
+        unsigned int position;
 } member_data_t;
 
 typedef struct
@@ -35,6 +35,12 @@ void initialize_archive(FILE *archive);
 archive_data_t *get_archive_data(FILE *archive);
 
 member_data_t *get_member_data(FILE *member, char *member_name, unsigned int archive_order, unsigned int position);
+
+member_data_t *get_member_data_from_archive(FILE *archive);
+
+void put_member_data(member_data_t *member_data, FILE *archive);
+
+void print_member_data(member_data_t *member_data);
 
 void destroy_archive_data(archive_data_t *archive_data);
 

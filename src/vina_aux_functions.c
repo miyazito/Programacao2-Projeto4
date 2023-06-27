@@ -5,16 +5,16 @@ void initialize_archive(FILE *archive)
         unsigned int directory_position = sizeof(unsigned int) + 1, directory_size = sizeof(unsigned int) + sizeof(int);
         int file_count = 0;
 
-        fseek(archive, 0, SEEK_SET);
-        fwrite(&directory_position, 1, sizeof(unsigned int), archive);
-        fwrite(&directory_size, 1, sizeof(unsigned int), archive);
-        fwrite(&file_count, 1, sizeof(int), archive);
+        append_bytes(archive, (char *)&directory_position, sizeof(unsigned int));
+        append_bytes(archive, (char *)&directory_size, sizeof(unsigned int));
+        append_bytes(archive, (char *)&file_count, sizeof(int));
+
 }
 
 archive_data_t *get_archive_data(FILE *archive)
 {
         int i;
-        unsigned int position;
+        /*unsigned int position;*/
         archive_data_t *archive_data = (archive_data_t *)malloc(sizeof(archive_data_t));
 
         fread(&archive_data->directory_position, 1, sizeof(unsigned int), archive);
@@ -26,9 +26,10 @@ archive_data_t *get_archive_data(FILE *archive)
         if (archive_data->file_count != 0)
         {
                 archive_data->members = (member_data_t **)malloc(sizeof(member_data_t *));
-                for (i = 0; i < file_count; i++)
+                for (i = 0; i < archive_data->file_count; i++)
                         archive_data->members[i] = get_member_data_from_archive(archive);
         }
+
         return archive_data;
 }
 
@@ -88,17 +89,43 @@ member_data_t *get_member_data(FILE *member, char *member_name, unsigned int arc
         return member_data;
 }
 
+void put_member_data(member_data_t *member_data, FILE *archive)
+{
+        append_bytes(archive, (char *)&member_data->name_size, sizeof(unsigned int));
+        append_bytes(archive, (char *)&member_data->name, member_data->name_size);
+        append_bytes(archive, (char *)&member_data->user_id, sizeof(uid_t));
+        append_bytes(archive, (char *)&member_data->permissions, sizeof(mode_t));
+        append_bytes(archive, (char *)&member_data->size, sizeof(off_t));
+        append_bytes(archive, (char *)&member_data->modification_date, sizeof(time_t));
+        append_bytes(archive, (char *)&member_data->archive_order, sizeof(unsigned int));
+        append_bytes(archive, (char *)&member_data->name_size, sizeof(unsigned int));
+}
+
+void print_member_data(member_data_t *member_data)
+{
+        printf("member name: %s\n", member_data->name);
+        printf("member user id: %u\n", member_data->user_id);
+        printf("member permissions: %o\n", member_data->permissions);
+        printf("member size: %jd\n", member_data->size);
+        printf("member modification date: %s", ctime(&member_data->modification_date));
+        printf("member archive order: %u\n", member_data->archive_order);
+        printf("member position: %u\n", member_data->position);
+}
+
 int file_is_in_archive(char *filename, archive_data_t *archive_data)
 {
-        int i, is_in_archive = -1;
+        int i;
         for (i = 0; i < archive_data->file_count; i++)
                 if (strcmp(filename, archive_data->members[i]->name) == 0)
                         return i;
+
+        return -1;
 }
 
 void extract_file(FILE *archive, FILE *file, unsigned int total_bytes, unsigned int position)
 {
         unsigned int remaining_bytes = total_bytes, bytes_to_read = 0;
+        char buffer[1024];
 
         fseek(archive, position, SEEK_SET);
 
