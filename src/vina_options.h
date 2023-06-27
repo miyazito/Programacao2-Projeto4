@@ -17,6 +17,5 @@ int option_extract(arguments_t *arg);
 int option_remove(arguments_t *arg);
 int option_list(arguments_t *arg);
 int option_help(arguments_t *arg);
-int option_test(arguments_t *arg);
 
 #endif

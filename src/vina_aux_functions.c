@@ -11,10 +11,9 @@ void initialize_archive(FILE *archive)
 
 }
 
-archive_data_t *get_archive_data(FILE *archive)
+archive_data_t *get_archive_data(char *archive_name, FILE *archive)
 {
         int i;
-        /*unsigned int position;*/
         archive_data_t *archive_data = (archive_data_t *)malloc(sizeof(archive_data_t));
 
         fread(&archive_data->directory_position, 1, sizeof(unsigned int), archive);
@@ -22,6 +21,8 @@ archive_data_t *get_archive_data(FILE *archive)
         fseek(archive, archive_data->directory_position, SEEK_SET);
         fread(&archive_data->directory_size, 1, sizeof(unsigned int), archive);
         fread(&archive_data->file_count, 1, sizeof(int), archive);
+
+        archive = freopen(archive_name, "rb+", archive);
 
         if (archive_data->file_count != 0)
         {
@@ -51,7 +52,6 @@ member_data_t *get_member_data_from_archive(FILE *archive)
 {
         member_data_t *member_data = (member_data_t *)malloc(sizeof(member_data_t));
 
-        fread(&member_data->member_data_size, 1, sizeof(unsigned int), archive);
         fread(&member_data->name_size, 1, sizeof(unsigned int), archive);
         fread(&member_data->name, 1, member_data->name_size, archive);
         fread(&member_data->user_id, 1, sizeof(uid_t), archive);
@@ -101,17 +101,6 @@ void put_member_data(member_data_t *member_data, FILE *archive)
         append_bytes(archive, (char *)&member_data->name_size, sizeof(unsigned int));
 }
 
-void print_member_data(member_data_t *member_data)
-{
-        printf("member name: %s\n", member_data->name);
-        printf("member user id: %u\n", member_data->user_id);
-        printf("member permissions: %o\n", member_data->permissions);
-        printf("member size: %jd\n", member_data->size);
-        printf("member modification date: %s", ctime(&member_data->modification_date));
-        printf("member archive order: %u\n", member_data->archive_order);
-        printf("member position: %u\n", member_data->position);
-}
-
 int file_is_in_archive(char *filename, archive_data_t *archive_data)
 {
         int i;
@@ -137,4 +126,18 @@ void extract_file(FILE *archive, FILE *file, unsigned int total_bytes, unsigned 
 
                 remaining_bytes -= bytes_to_read;
         }
+}
+
+void update_directory(FILE *archive, archive_data_t *archive_data, unsigned int old_position, unsigned int new_position, unsigned int old_size, unsigned int new_size, int new_file_count)
+{
+        rewind(archive);
+        fwrite(&new_position, 1, sizeof(unsigned int), archive);
+        move_bytes(archive, old_position, old_position + old_size, new_position);
+        fseek(archive, new_position, SEEK_SET);
+        fwrite(&new_size, 1, sizeof(unsigned int), archive);
+        fwrite(&new_file_count, 1, sizeof(int), archive);
+
+        archive_data->directory_position = new_position;
+        archive_data->directory_size = new_size;
+        archive_data->file_count = new_file_count;
 }

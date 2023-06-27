@@ -1,9 +1,9 @@
 #include "vina_options.h"
 
-int option_insert_a(arguments_t *arg)
+int option_insert(arguments_t *arg)
 {
         int i;
-        unsigned int member_size, position, archive_order, old_directory_size/*, directory_position*/;
+        unsigned int  member_size, position, new_position, archive_order, new_directory_size, new_file_count;
         char *buffer;
         FILE *archive, *members[arg->member_count];
         archive_data_t *archive_data;
@@ -20,7 +20,8 @@ int option_insert_a(arguments_t *arg)
 
         archive = freopen(arg->archive, "rb+", archive);
 
-        archive_data = get_archive_data(archive);
+        archive_data = get_archive_data(arg->archive, archive);
+        archive_order = archive_data->file_count;
 
         for (i = 0; i < arg->member_count; i++)
         {
@@ -31,15 +32,17 @@ int option_insert_a(arguments_t *arg)
                         fprintf(stderr, "Erro ao abrir arquivo \"%s\"\n", arg->files[i]);
                         return 0;
                 }
+
                 member_size = get_size(members[i]);
-
-                
-
                 position = archive_data->directory_position;
                 member_data = get_member_data(members[i], arg->files[i], archive_order, position);
-                old_directory_size = archive_data->directory_size;
-                archive_data->directory_size += member_data->member_data_size;
-                move_bytes(archive, position, position + old_directory_size, position + member_size);
+
+
+                new_position = position + member_size;
+                new_directory_size = archive_data->directory_size + member_data->member_data_size;
+                new_file_count = archive_data->file_count + 1;
+
+                update_directory(archive, archive_data, position, new_position, archive_data->directory_size, new_directory_size, new_file_count);
 
                 fseek(archive, position, SEEK_SET);
                 fread(buffer, 1, member_size, members[i]);
@@ -48,6 +51,7 @@ int option_insert_a(arguments_t *arg)
                 put_member_data(member_data, archive);                
 
                 archive_order++;
+                archive_data->file_count++;
 
                 fclose(members[i]);
                 free(buffer);
@@ -57,7 +61,7 @@ int option_insert_a(arguments_t *arg)
         return 1;
 }
 
-int option_insert(arguments_t *arg)
+int option_insert_a(arguments_t *arg)
 {
         return 1;
 }
@@ -75,7 +79,7 @@ int option_extract(arguments_t *arg)
         archive_data_t *archive_data;
 
         archive = fopen(arg->archive, "rb+");
-        archive_data = get_archive_data(archive);
+        archive_data = get_archive_data(arg->archive, archive);
 
         if (arg->member_count == 0)
         {
@@ -108,13 +112,7 @@ int option_extract(arguments_t *arg)
 }
 
 int option_remove(arguments_t *arg)
-{/*
-        FILE *archive;
-        archive_data_t *archive_data;
-
-        archive = fopen(arg->archive, "rb+");
-        archive_data = get_archive_data(archive);*/
-
+{
         return 1;
 }
 
@@ -130,7 +128,7 @@ int option_list(arguments_t *arg)
                 return 0;
         }
 
-        archive_data = get_archive_data(archive);
+        archive_data = get_archive_data(arg->archive, archive);
 
         if (archive_data->file_count == 0)
                 printf("O arquivador %s esta vazio\n", arg->archive);
@@ -159,11 +157,5 @@ int option_help(arguments_t *arg)
         printf("-c : lista o conteudo de archive\n");
         printf("-h : imprime esta mensagem de ajuda\n");
 
-        return 1;
-}
-
-int option_test(arguments_t *arg)
-{
-        
         return 1;
 }
